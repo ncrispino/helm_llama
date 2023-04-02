@@ -31,10 +31,10 @@ class Tokenizer:
         assert type(s) is str
         t = self.sp_model.encode(s)
 
-	# Truncate t if needed
+        # Truncate t if needed
         if len(t) + 1 > max_seq_len:
-	    t = t[:max_seq_len - 1] # subtract 1 to save room for bos or eos
-	    print('new t len: ', len(t))
+            t = t[:max_seq_len - 1] # subtract 1 to save room for bos or eos
+            print('new t len: ', len(t))
 
         if bos:
             t = [self.bos_id] + t

@@ -15,7 +15,7 @@ def get_data(data_url):
        data = data["request_states"]
     return pd.json_normalize(data)
 
-def get_data_list(df, prepend_text, k, tokenizer, context_window, num_examples=5, batch_size=1):
+def get_data_list(df, prepend_text, k, tokenizer, context_window, num_examples=5, batch_size=1, max_gen_len=100):
     """Given a pandas df will get all samples from first trial and truncate based on system instruction and k tokens.
 
     Returns a list of lists, each of length batch_size.
@@ -34,65 +34,64 @@ def get_data_list(df, prepend_text, k, tokenizer, context_window, num_examples=5
     few_shot = df_final["request.prompt"].str.split(beginning_prompt)[0][1:num_examples + 1]
     few_shot = [ex.strip() for ex in few_shot]
     # TODO: Add instance ids so each example can be identified (though is probably in correct order so can go 1 by 1?)
-    input_list = [truncate_example(prepend_text, k, text, few_shot, context_window) for text in input_list]
+    input_list = [truncate_example(prepend_text, k, text, few_shot, tokenizer, context_window, max_gen_len) for text in input_list]
     
     # Now put into batches
     input_list_batched = [input_list[i: i + batch_size] for i in range(0, len(input_list), batch_size)] 
     
     return input_list_batched
 
-def truncate_example(prepend_text, k, text, few_shot, context_window=2048, max_gen_len=100):
-	"""Given input prompt of text, will truncate by removing few-shot examples one-by-one until they fit the context window of the model.
-	
-	Same as in HELM.
+def truncate_example(prepend_text, k, text, few_shot, tokenizer, context_window, max_gen_len):
+        """Given input prompt of text, will truncate by removing few-shot examples one-by-one until they fit the context window of the model.
+        
+        Same as in HELM.
 
-	"""
-	current_text = get_full_text(prepend_text, k, text, few_shot, len(few_shot))
-	few_shot_instances = len(few_shot)
-	while few_shot_instances > 0:
-		if not fits_within_context_window(current_text):
-			few_shot_instances -= 1
-			current_text =  get_full_text(prepend_text, k, text, few_shot, few_shot_instances)
-			print("current text: ", current_text)			
-		else:
-			removed_train_instances_count = len(few_shot) - few_shot_instances
-			if removed_train_instances_count > 0:
-				print(
-				f"The original constructed prompt exceeded the max context length. "
-				f"Removed {removed_train_instances_count} in-context examples to fit "
-				f"it within the context window."
-				)
-			return current_text	
-	return truncate_from_right(current_text, context_window, max_gen_len)
+        """
+        current_text = get_full_text(prepend_text, k, text, few_shot, len(few_shot))
+        few_shot_instances = len(few_shot)
+        while few_shot_instances > 0:
+                if not fits_within_context_window(current_text, context_window, max_gen_len, tokenizer):
+                        few_shot_instances -= 1
+                        current_text =  get_full_text(prepend_text, k, text, few_shot, few_shot_instances)
+                else:
+                        removed_train_instances_count = len(few_shot) - few_shot_instances
+                        if removed_train_instances_count > 0:
+                                print(
+                                f"The original constructed prompt exceeded the max context length. "
+                                f"Removed {removed_train_instances_count} in-context examples to fit "
+                                f"it within the context window."
+                                )
+                        return current_text     
+        return truncate_from_right(current_text, context_window, max_gen_len, tokenizer)
 
 def get_full_text(prepend_text, k, text, few_shot, few_shot_instances):
-	"""Given text and few-shot examples, will return the full text. If k < 0 will reverse use k words in reverse instead."""
-	k_words = " ".join(text.split()[-abs(k):])
-	if k < 0:
-		k_words = " ".join(reversed(k_words.split()))
-	return prepend_text + "\n" + k_words + "\n\n".join(few_shot[:few_shot_instances]) + "\n" + text
+        """Given text and few-shot examples, will return the full text. If k < 0 will reverse use k words in reverse instead."""
+        k_words = " ".join(text.split()[-abs(k):])
+        if k < 0:
+                k_words = " ".join(reversed(k_words.split()))
+        return prepend_text + "\n" + k_words + "\n\n" + "\n\n".join(few_shot[:few_shot_instances]) + "\n\n" + text # In their example, each few-shot separated by \n\n
 
 def fits_within_context_window(full_text, context_window, max_gen_len, tokenizer):
-	"""
-	Checks if the given text fits within the context window given by `max_request_length`
-	taking to account the expected completion length (defaults to 0).
-	"""
-	return (
-		# TODO: SHOULD bos be True in the second part?
-		len(tokenizer.encode(full_text, bos=True, eos=False)) + len(tokenizer.encode(max_gen_len, bos=True, eos=False))
-		<= context_window
-	)
+        """
+        Checks if the given text fits within the context window given by `max_request_length`
+        taking to account the expected completion length (defaults to 0).
+        """
+        return (
+                # TODO: SHOULD I add 1 to the second part?
+                len(tokenizer.encode(full_text, bos=True, eos=False, max_seq_len=context_window)) + max_gen_len + 1
+                <= context_window
+        )
 
 def truncate_from_right(x, context_window, max_gen_len, tokenizer):
-	print("All few-shot examples were removed as the original constructed prompt plus any amount of few-shot examples exceeded the max prompt length.")
-	return tokenizer.encode(x, bos=True, eos=False, max_seq_len=context_window + max_gen_len, truncate=True)	    
+        print("All few-shot examples were removed as the original constructed prompt plus any amount of few-shot examples exceeded the max prompt length.")
+        return tokenizer.encode(x, bos=True, eos=False, max_seq_len=context_window + max_gen_len, truncate=True)            
 
 if __name__ == "__main__":
-	data_url = "https://raw.githubusercontent.com/ucinlp/llama/main/llama/data/helm/helm_example.json"
-	df = get_data(data_url)
-	tokenizer = Tokenizer("weights")
-	prepend_text = "You are an attention mechanism."
-	k = 5
-	context_window = 2048
-	input_list_batched = get_data_list(df, prepend_text, k, tokenizer, context_window, num_examples = 5, batch_size = 1)
-	print(input_list_batched)
+        data_url = "https://storage.googleapis.com/crfm-helm-public/benchmark_output/runs/v0.2.2/narrative_qa:model=openai_text-davinci-003,data_augmentation=canonical/scenario_state.json"
+        df = get_data(data_url)
+        tokenizer = Tokenizer("weights/tokenizer.model")
+        prepend_text = "You are an attention mechanism."
+        k = 5
+        context_window = 2048
+        input_list_batched = get_data_list(df, prepend_text, k, tokenizer, context_window, num_examples = 5, batch_size = 1)
+        print(input_list_batched)

@@ -1,4 +1,10 @@
-export MP=1
+#BSUB -N
+#BSUB -o logs/llama_test.%J
+#BSUB -n 8
+#BSUB -m chenguang02
+#BSUB -gpu "num=8:gmodel=NVIDIARTXA6000"
+
+export MP=8
 export TARGET_FOLDER="weights"
 export MODEL_SIZE=7B
 
