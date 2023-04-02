@@ -32,7 +32,7 @@ class Tokenizer:
         t = self.sp_model.encode(s)
 
         # Truncate t if needed
-        if len(t) + 1 > max_seq_len:
+        if truncate and len(t) + 1 > max_seq_len:
             t = t[:max_seq_len - 1] # subtract 1 to save room for bos or eos
             print('new t len: ', len(t))
 
