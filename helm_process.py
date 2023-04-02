@@ -33,6 +33,7 @@ def get_data_list(df, prepend_text, k, tokenizer, context_window, num_examples=5
     beginning_prompt = df_final["request.prompt"][0].split(": ")[0] + ":" # Gets first part of input before ":", e.g. is "Passage:" in narrativeQA.
     few_shot = df_final["request.prompt"].str.split(beginning_prompt)[0][1:num_examples + 1]
     few_shot = [ex.strip() for ex in few_shot]
+    # TODO: Add instance ids so each example can be identified (though is probably in correct order so can go 1 by 1?)
     input_list = [truncate_example(prepend_text, k, text, few_shot, context_window) for text in input_list]
     
     # Now put into batches
