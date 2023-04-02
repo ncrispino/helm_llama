@@ -27,9 +27,15 @@ class Tokenizer:
         )
         assert self.sp_model.vocab_size() == self.sp_model.get_piece_size()
 
-    def encode(self, s: str, bos: bool, eos: bool) -> List[int]:
+    def encode(self, s: str, bos: bool, eos: bool, max_seq_len: int, truncate: bool = False) -> List[int]:
         assert type(s) is str
         t = self.sp_model.encode(s)
+
+	# Truncate t if needed
+        if len(t) + 1 > max_seq_len:
+	    t = t[:max_seq_len - 1] # subtract 1 to save room for bos or eos
+	    print('new t len: ', len(t))
+
         if bos:
             t = [self.bos_id] + t
         if eos:
