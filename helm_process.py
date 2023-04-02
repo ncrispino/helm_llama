@@ -76,6 +76,7 @@ def fits_within_context_window(full_text, context_window, max_gen_len, tokenizer
         Checks if the given text fits within the context window given by `max_request_length`
         taking to account the expected completion length (defaults to 0).
         """
+        # print("checking if beyond context window: ", len(tokenizer.encode(full_text, bos=True, eos=False, max_seq_len=context_window)) + max_gen_len + 1)
         return (
                 # TODO: SHOULD I add 1 to the second part?
                 len(tokenizer.encode(full_text, bos=True, eos=False, max_seq_len=context_window)) + max_gen_len + 1

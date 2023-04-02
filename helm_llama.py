@@ -84,10 +84,10 @@ def main(
         ckpt_dir, tokenizer_path, local_rank, world_size, max_seq_len, max_batch_size
     )
 
-    data_url = "https://raw.githubusercontent.com/ucinlp/llama/main/llama/data/helm/helm_example.json"
+    data_url = "https://storage.googleapis.com/crfm-helm-public/benchmark_output/runs/v0.2.2/narrative_qa:model=openai_text-davinci-003,data_augmentation=canonical/scenario_state.json"
     df = get_data(data_url)
     tokenizer = Tokenizer(tokenizer_path)        
-    input_list_batched = get_data_list(df, prepend_text, k, tokenizer, context_window=max_seq_len, num_examples=num_examples, batch_size=max_batch_size)
+    input_list_batched = get_data_list(df, prepend_text, k, tokenizer, context_window=max_seq_len, num_examples=num_examples, batch_size=max_batch_size, max_gen_len=max_new_tokens)
 
     for input_list in input_list_batched:
         prompts = input_list
