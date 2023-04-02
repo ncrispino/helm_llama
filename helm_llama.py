@@ -89,15 +89,22 @@ def main(
     tokenizer = Tokenizer(tokenizer_path)        
     input_list_batched = get_data_list(df, prepend_text, k, tokenizer, context_window=max_seq_len, num_examples=num_examples, batch_size=max_batch_size, max_gen_len=max_new_tokens)
 
+    i = 0
+    output_list = []
     for input_list in input_list_batched:
+        i += len(input_list)
+        print("i: ", i)
         prompts = input_list
         results = generator.generate(
             prompts, max_gen_len=max_new_tokens, temperature=temperature, top_p=top_p
         )
 
         for result in results:
-            print(result)
-            print("\n==================================\n")
+            output_list.append(result)
+        #    print(result)
+        #    print("\n==================================\n")
+
+    return output_list
 
 
 if __name__ == "__main__":
