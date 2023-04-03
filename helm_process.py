@@ -15,7 +15,7 @@ def get_data(data_url):
        data = data["request_states"]
     return pd.json_normalize(data)
 
-def get_data_list(df, prepend_text, k, tokenizer, context_window, num_examples=5, batch_size=1, max_gen_len=100):
+def get_data_list(df, prepend_text, k, tokenizer, context_window, num_examples=5, batch_size=1, max_gen_len=100, num_instances = 0):
     """Given a pandas df will get all samples from first trial and truncate based on system instruction and k tokens.
 
     Returns a list of lists, each of length batch_size.
@@ -28,6 +28,8 @@ def get_data_list(df, prepend_text, k, tokenizer, context_window, num_examples=5
     # As there are 3 in each? I'm just selecting first. Maybe want to see what they change
     df_final = df_final.groupby("instance.id").first()
     input_list = df_final["instance.input.text"].to_list()
+    if num_instances > 0:
+        input_list = input_list[:num_instances]
 
     # Get list prompts including few-shot examples.
     beginning_prompt = df_final["request.prompt"][0].split(": ")[0] + ":" # Gets first part of input before ":", e.g. is "Passage:" in narrativeQA.
@@ -55,21 +57,23 @@ def truncate_example(prepend_text, k, text, few_shot, tokenizer, context_window,
                         current_text =  get_full_text(prepend_text, k, text, few_shot, few_shot_instances)
                 else:
                         removed_train_instances_count = len(few_shot) - few_shot_instances
-                        if removed_train_instances_count > 0:
-                                print(
-                                f"The original constructed prompt exceeded the max context length. "
-                                f"Removed {removed_train_instances_count} in-context examples to fit "
-                                f"it within the context window."
-                                )
+                        #if removed_train_instances_count > 0:
+                        #        print(
+                        #        f"The original constructed prompt exceeded the max context length. "
+                        #        f"Removed {removed_train_instances_count} in-context examples to fit "
+                        #        f"it within the context window."
+                        #        )
                         return current_text     
         return truncate_from_right(current_text, context_window, max_gen_len, tokenizer)
 
 def get_full_text(prepend_text, k, text, few_shot, few_shot_instances):
         """Given text and few-shot examples, will return the full text. If k < 0 will reverse use k words in reverse instead."""
+        prepend_text = prepend_text + "\n" if prepend_text != '' else ''
         k_words = " ".join(text.split()[-abs(k):])
         if k < 0:
                 k_words = " ".join(reversed(k_words.split()))
-        return prepend_text + "\n" + k_words + "\n\n" + "\n\n".join(few_shot[:few_shot_instances]) + "\n\n" + text # In their example, each few-shot separated by \n\n
+        k_words = k_words + "\n\n" if k_words != 0 else ''
+        return prepend_text + k_words + "\n\n".join(few_shot[:few_shot_instances]) + "\n\n" + text # In their example, each few-shot separated by \n\n
 
 def fits_within_context_window(full_text, context_window, max_gen_len, tokenizer):
         """
@@ -84,7 +88,7 @@ def fits_within_context_window(full_text, context_window, max_gen_len, tokenizer
         )
 
 def truncate_from_right(x, context_window, max_gen_len, tokenizer):
-        print("All few-shot examples were removed as the original constructed prompt plus any amount of few-shot examples exceeded the max prompt length.")
+        # print("All few-shot examples were removed as the original constructed prompt plus any amount of few-shot examples exceeded the max prompt length.")
         return tokenizer.decode(tokenizer.encode(x, bos=True, eos=False, max_seq_len=context_window + max_gen_len, truncate=True))
         # return tokenizer.encode(x, bos=True, eos=False, max_seq_len=context_window + max_gen_len, truncate=True)            
 

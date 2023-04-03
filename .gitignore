@@ -1,6 +1,8 @@
 # Nick's
 logs/
 weights/
+datasets/
+output/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

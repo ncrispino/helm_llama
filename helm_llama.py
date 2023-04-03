@@ -15,6 +15,7 @@ from pathlib import Path
 from fairscale.nn.model_parallel.initialize import initialize_model_parallel
 
 from llama import ModelArgs, Transformer, Tokenizer, LLaMA
+from get_datasets import dataset_map, get_data_name, get_prompt_map
 
 
 def setup_model_parallel() -> Tuple[int, int]:
@@ -71,10 +72,13 @@ def main(
     top_p: float = 1, # previously 0.95
     max_seq_len: int = 2048,
     max_batch_size: int = 1,
-    prepend_text: str = "You are an attention mechanism.",
+    prepend_text: str = "",
     k: int = 5,
     num_examples: int = 5,
     max_new_tokens: int = 100,
+    data_id: int = 0,
+    p_id: int = 0,
+    num_instances: int = 0 # how many trials to run
 ):
     local_rank, world_size = setup_model_parallel()
     if local_rank > 0:
@@ -84,16 +88,34 @@ def main(
         ckpt_dir, tokenizer_path, local_rank, world_size, max_seq_len, max_batch_size
     )
 
-    data_url = "https://storage.googleapis.com/crfm-helm-public/benchmark_output/runs/v0.2.2/narrative_qa:model=openai_text-davinci-003,data_augmentation=canonical/scenario_state.json"
-    df = get_data(data_url)
+    # data_url = "https://storage.googleapis.com/crfm-helm-public/benchmark_output/runs/v0.2.2/narrative_qa:model=openai_text-davinci-003,data_augmentation=canonical/scenario_state.json"
+    # df = get_data(data_url)
     tokenizer = Tokenizer(tokenizer_path)        
-    input_list_batched = get_data_list(df, prepend_text, k, tokenizer, context_window=max_seq_len, num_examples=num_examples, batch_size=max_batch_size, max_gen_len=max_new_tokens)
+    # input_list_batched = get_data_list(df, prepend_text, k, tokenizer, context_window=max_seq_len, num_examples=num_examples, batch_size=max_batch_size, max_gen_len=max_new_tokens)
 
-    i = 0
+    # get dataset based on id
+    d_map = dataset_map()
+    data_url = d_map[data_id]
+
+    # get prompt based on prompt id
+    prepend_text = get_prompt_map()[p_id]
+
+    def get_name(url):
+        return url.split('v0.2.2/')[1].split(":")[0]
+
+    # for data_url in urls:
+    df = get_data(data_url)
+    input_list_batched = get_data_list(df, prepend_text, k, tokenizer, max_seq_len, num_examples = num_examples, batch_size = max_batch_size, num_instances = num_instances)
+    data_name = get_data_name(data_url)
+    print('data name: ', data_name)
+    print('len of data: ', len(input_list_batched))
+    # print(input_list_batched) 0
     output_list = []
+    i = 0
     for input_list in input_list_batched:
         i += len(input_list)
-        print("i: ", i)
+        if i % 5 == 0:
+            print("i: ", i)
         prompts = input_list
         results = generator.generate(
             prompts, max_gen_len=max_new_tokens, temperature=temperature, top_p=top_p
@@ -103,8 +125,12 @@ def main(
             output_list.append(result)
         #    print(result)
         #    print("\n==================================\n")
+    output_dict = dict(zip(range(1, len(output_list) + 1), output_list))
 
-    return output_list
+    output_dir = "/storage1/chenguangwang/Active/llama_system/output"
+    with open(f'{output_dir}/{data_id}_{p_id}_{k}.json', 'w') as f:
+        json.dump(output_dict, f)
+    # return output_list
 
 
 if __name__ == "__main__":
