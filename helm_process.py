@@ -112,6 +112,18 @@ def truncate_from_right(x, context_window, max_gen_len, tokenizer):
         return tokenizer.decode(tokenizer.encode(x, bos=True, eos=False, max_seq_len=context_window + max_gen_len, truncate=True))
         # return tokenizer.encode(x, bos=True, eos=False, max_seq_len=context_window + max_gen_len, truncate=True)            
 
+def isolate_output(prompts, decoded):
+		"""Given list of prompts and decoded outputs, will return list of only outputs. 
+        Also cuts off end of output after "\n\n" if it exists.
+        """
+		outputs = []
+		for prompt, decode in zip(prompts, decoded):
+			output = decode[len(prompt) + 1:] # +1 to remove space after prompt			
+			if "\n\n" in output:
+				output = output.split("\n\n")[0]
+			outputs.append(output)
+		return outputs
+
 if __name__ == "__main__":        
         # data_url = "https://storage.googleapis.com/crfm-helm-public/benchmark_output/runs/v0.2.2/narrative_qa:model=openai_text-davinci-003,data_augmentation=canonical/scenario_state.json"
         # df = get_data(data_url)
