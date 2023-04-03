@@ -8,12 +8,32 @@ If user puts in a -k, it will mean they want the tokens in reverse.
 import urllib.request, json
 import pandas as pd
 from llama.tokenizer import Tokenizer
+from ast import literal_eval
 
 def get_data(data_url):
     with urllib.request.urlopen(data_url) as url:
        data = json.load(url)
        data = data["request_states"]
     return pd.json_normalize(data)
+
+def get_helm_data_list(df_file, prepend_text, k, tokenizer, context_window, num_examples=5, batch_size=1, max_gen_len=100, num_instances = 0):
+    df = pd.read_csv(df_file, quotechar='"') # Need quotechar for literal_eval to work.
+    df = df.query("eval_instance_block != 'eval_instance_block'")
+    df["train_instance_blocks"] = df["train_instance_blocks"].apply(literal_eval)
+    instructions = df["instructions_block"][0]
+    assert instructions != "instructions_block"
+    
+    few_shot = df["train_instance_blocks"][0]    
+    input_list = df["eval_instance_block"].tolist()
+    if num_instances > 0:
+        input_list = input_list[:num_instances]
+    input_list = [truncate_example(prepend_text, k, text, few_shot, tokenizer, context_window, max_gen_len) for text in input_list]
+	
+	# Now put into batches
+    input_list_batched = [input_list[i: i + batch_size] for i in range(0, len(input_list), batch_size)] 
+    
+    return input_list_batched
+
 
 def get_data_list(df, prepend_text, k, tokenizer, context_window, num_examples=5, batch_size=1, max_gen_len=100, num_instances = 0):
     """Given a pandas df will get all samples from first trial and truncate based on system instruction and k tokens.
@@ -92,12 +112,13 @@ def truncate_from_right(x, context_window, max_gen_len, tokenizer):
         return tokenizer.decode(tokenizer.encode(x, bos=True, eos=False, max_seq_len=context_window + max_gen_len, truncate=True))
         # return tokenizer.encode(x, bos=True, eos=False, max_seq_len=context_window + max_gen_len, truncate=True)            
 
-if __name__ == "__main__":
-        data_url = "https://storage.googleapis.com/crfm-helm-public/benchmark_output/runs/v0.2.2/narrative_qa:model=openai_text-davinci-003,data_augmentation=canonical/scenario_state.json"
-        df = get_data(data_url)
+if __name__ == "__main__":        
+        # data_url = "https://storage.googleapis.com/crfm-helm-public/benchmark_output/runs/v0.2.2/narrative_qa:model=openai_text-davinci-003,data_augmentation=canonical/scenario_state.json"
+        # df = get_data(data_url)
         tokenizer = Tokenizer("weights/tokenizer.model")
         prepend_text = "You are an attention mechanism."
         k = 5
         context_window = 2048
-        input_list_batched = get_data_list(df, prepend_text, k, tokenizer, context_window, num_examples = 5, batch_size = 1)
+        input_list_batched = get_helm_data_list("/scratch/cnicholas/helm/dataset", prepend_text, k, tokenizer, context_window, num_examples = 5, batch_size = 1)
+        # input_list_batched = get_data_list(df, prepend_text, k, tokenizer, context_window, num_examples = 5, batch_size = 1)
         print(input_list_batched)
