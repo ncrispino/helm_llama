@@ -120,7 +120,7 @@ def main(
 
     # output_dir = "/storage1/chenguangwang/Active/llama_system/output"
     output_dir = "output"
-    with open(f'{output_dir}/{data_id}_{p_id}_{k}.json', 'w') as f:
+    with open(f'{output_dir}/{data_id}_{p_id}_{k}_samples{num_instances}.json', 'w') as f:
         json.dump(output_dict, f)
     # return output_list
 

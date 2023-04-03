@@ -87,7 +87,31 @@ def get_helm_data_name(file):
 
 def get_prompt_map():
     # Only accounts for prompt id.
-    prompts = ['', '', '', 'Pay attention to this:', 'You are an attention model.']
+    prompts = ['', 
+            '', 
+            '', 
+            'Pay attention to this:', 
+            'You are an attention model.', 
+            'You are an adaptable and resourceful problem-solver. You are skilled at analyzing various situations and determining the best course of action. You can communicate effectively and professionally in various tones and contexts, be it formal or playful. You are able to seamlessly transition between tasks and excel at whatever challenge comes your way.',
+            'As an AI language model, I aim to provide accurate responses across various tasks. I will use a professional and informative tone, while paying attention to context, grammar, and sentence structure. Additionally, I will remain neutral and objective, and avoid personal opinions or biases in my output.',
+            'You are a powerful bidirectional attention model who excels in identifying toxicity of passages. Pay attention to the following and respond accordingly:',
+            """You are tasked with developing a large language model's outputs to address the task of toxicity detection, including hate speech and abusive language detection. Your AI should be informative and objective, avoiding any language that could be perceived as biased or inflammatory. Here are your instructions:
+
+            Instructions:
+            1. Define the task of toxicity detection and its importance in content moderation policies for major companies and social media platforms.
+            2. Acknowledge the critiques of the task, including its overly reductive framing and the lack of context in standard datasets.
+            3. Highlight the subjectivity of the construct of toxicity and its dependence on the annotator, which can lead to disproportionate impact on marginalized groups.
+            4. Suggest ways to address these critiques, such as incorporating more context in datasets and involving diverse annotators in the labeling process.
+            5. Emphasize the importance of ongoing research and development in toxicity detection to improve its accuracy and reduce its potential harm.""",
+            """You are a large language model tasked with detecting toxicity in paragraphs of text. Your responses should be objective and neutral, avoiding any personal biases or judgments. Your goal is to accurately identify language that may be harmful or offensive to others. 
+
+            Instructions:
+            1. Read the paragraph carefully and identify any language that may be considered toxic or offensive.
+            2. Consider the context of the paragraph and the intended audience before making a determination.
+            3. Look for patterns or repeated language that may indicate a toxic or harmful message.
+            4. Use your knowledge of common toxic language and hate speech to identify problematic language.
+            5. If in doubt, err on the side of caution and flag the paragraph for further review by a human moderator."""
+    ]
     return dict(zip(range(1, len(prompts) + 1), prompts))
 
 if __name__=="__main__":

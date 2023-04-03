@@ -34,6 +34,14 @@ def get_helm_data_list(df_file, prepend_text, k, tokenizer, context_window, num_
     
     return input_list_batched
 
+def get_helm_labels(label_file, num_instances):
+    """Given label file, will return list of labels. If num_instances > 0, will only return that many labels."""
+    df = pd.read_csv(label_file)
+    labels = df["isolated_output"].to_list()
+    if num_instances > 0:
+        labels = labels[:num_instances]
+    return dict(zip(range(1, len(labels) + 1), labels))
+
 
 def get_data_list(df, prepend_text, k, tokenizer, context_window, num_examples=5, batch_size=1, max_gen_len=100, num_instances = 0):
     """Given a pandas df will get all samples from first trial and truncate based on system instruction and k tokens.
