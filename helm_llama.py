@@ -111,13 +111,15 @@ def main(
             prompts, max_gen_len=max_new_tokens, temperature=temperature, top_p=top_p
         )
 
-        output_list = isolate_output(prompts, results)
+        outputs = isolate_output(prompts, results)
+        output_list.append(outputs)
         # for result in results:        
         #    print(result)
         #    print("\n==================================\n")
     output_dict = dict(zip(range(1, len(output_list) + 1), output_list))
 
-    output_dir = "/storage1/chenguangwang/Active/llama_system/output"
+    # output_dir = "/storage1/chenguangwang/Active/llama_system/output"
+    output_dir = "output"
     with open(f'{output_dir}/{data_id}_{p_id}_{k}.json', 'w') as f:
         json.dump(output_dict, f)
     # return output_list

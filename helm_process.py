@@ -18,7 +18,7 @@ def get_data(data_url):
 
 def get_helm_data_list(df_file, prepend_text, k, tokenizer, context_window, num_examples=5, batch_size=1, max_gen_len=100, num_instances = 0):
     df = pd.read_csv(df_file, quotechar='"') # Need quotechar for literal_eval to work.
-    df = df.query("eval_instance_block != 'eval_instance_block'")
+    df = df.query("eval_instance_block != 'eval_instance_block'").copy()
     df["train_instance_blocks"] = df["train_instance_blocks"].apply(literal_eval)
     instructions = df["instructions_block"][0]
     assert instructions != "instructions_block"
