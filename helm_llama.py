@@ -8,14 +8,14 @@ import torch
 import fire
 import time
 import json
-from helm_process import get_data, get_data_list
+from helm_process import get_data, get_helm_data_list, isolate_output
 
 from pathlib import Path
 
 from fairscale.nn.model_parallel.initialize import initialize_model_parallel
 
 from llama import ModelArgs, Transformer, Tokenizer, LLaMA
-from get_datasets import dataset_map, get_data_name, get_prompt_map
+from get_datasets import helm_dataset_map, get_helm_data_name, get_prompt_map
 
 
 def setup_model_parallel() -> Tuple[int, int]:
@@ -75,7 +75,7 @@ def main(
     prepend_text: str = "",
     k: int = 5,
     num_examples: int = 5,
-    max_new_tokens: int = 100,
+    max_new_tokens: int = 100, # TODO: change this to be a function of the dataset
     data_id: int = 0,
     p_id: int = 0,
     num_instances: int = 0 # how many trials to run
@@ -88,28 +88,18 @@ def main(
         ckpt_dir, tokenizer_path, local_rank, world_size, max_seq_len, max_batch_size
     )
 
-    # data_url = "https://storage.googleapis.com/crfm-helm-public/benchmark_output/runs/v0.2.2/narrative_qa:model=openai_text-davinci-003,data_augmentation=canonical/scenario_state.json"
-    # df = get_data(data_url)
-    tokenizer = Tokenizer(tokenizer_path)        
-    # input_list_batched = get_data_list(df, prepend_text, k, tokenizer, context_window=max_seq_len, num_examples=num_examples, batch_size=max_batch_size, max_gen_len=max_new_tokens)
+    tokenizer = Tokenizer(tokenizer_path)
 
     # get dataset based on id
-    d_map = dataset_map()
-    data_url = d_map[data_id]
+    dataset_file = helm_dataset_map()[data_id]
 
     # get prompt based on prompt id
     prepend_text = get_prompt_map()[p_id]
 
-    def get_name(url):
-        return url.split('v0.2.2/')[1].split(":")[0]
-
-    # for data_url in urls:
-    df = get_data(data_url)
-    input_list_batched = get_data_list(df, prepend_text, k, tokenizer, max_seq_len, num_examples = num_examples, batch_size = max_batch_size, num_instances = num_instances)
-    data_name = get_data_name(data_url)
+    input_list_batched = get_helm_data_list(f"/scratch/cnicholas/helm/dataset/{dataset_file}", prepend_text, k, tokenizer, max_seq_len, num_examples = num_examples, batch_size = max_batch_size, num_instances = num_instances)
+    data_name = get_helm_data_name(dataset_file)
     print('data name: ', data_name)
-    print('len of data: ', len(input_list_batched))
-    # print(input_list_batched) 0
+    print('len of data: ', len(input_list_batched))    
     output_list = []
     i = 0
     for input_list in input_list_batched:
@@ -121,8 +111,8 @@ def main(
             prompts, max_gen_len=max_new_tokens, temperature=temperature, top_p=top_p
         )
 
-        for result in results:
-            output_list.append(result)
+        output_list = isolate_output(prompts, results)
+        # for result in results:        
         #    print(result)
         #    print("\n==================================\n")
     output_dict = dict(zip(range(1, len(output_list) + 1), output_list))
