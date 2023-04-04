@@ -109,7 +109,7 @@ def get_full_text(prepend_text, k, instructions, text, few_shot, few_shot_instan
                 k_words = " ".join(reversed(k_words.split()))
         k_words = k_words + "\n\n" if k != 0 else ''
         instructions = instructions + "\n" if instructions != '' else ''
-        return prepend_text + k_words + instructions + "\n".join(few_shot[:few_shot_instances]) + text # In their example, each few-shot separated by \n\n
+        return prepend_text + k_words + instructions + "\n".join(few_shot[:few_shot_instances]) + "\n" + text # In their example, each few-shot separated by \n\n
 
 def fits_within_context_window(full_text, context_window, max_gen_len, tokenizer):
         """
@@ -147,7 +147,7 @@ if __name__ == "__main__":
         prepend_text = "You are an attention mechanism."
         k = 0
         context_window = 2048
-        data_name = "raft:subset=ade_corpus_v2,model=huggingface_gpt-j-6b.csv" # "raft:subset=tai_safety_research,model=huggingface_gpt-j-6b.csv" #"natural_qa:mode=closedbook,model=huggingface_gpt-j-6b.csv" 
+        data_name = 'natural_qa:mode=openbook_longans,model=huggingface_gpt-j-6b.csv' #'quac:model=huggingface_gpt-j-6b.csv' #'raft:subset=one_stop_english,model=huggingface_gpt-j-6b.csv' #'truthful_qa:task=mc_single,method=multiple_choice_joint,model=huggingface_gpt-j-6b.csv' #'summarization_xsum:temperature=0.3,device=cpu,model=huggingface_gpt-j-6b.csv' #'summarization_cnndm:temperature=0.3,device=cpu,model=huggingface_gpt-j-6b.csv' #'boolq:model=huggingface_gpt-j-6b.csv' #'civil_comments:demographic=white,model=huggingface_gpt-j-6b.csv' #'commonsense:dataset=hellaswag,method=multiple_choice_separate_original,model=huggingface_gpt-j-6b.csv' #'commonsense:dataset=openbookqa,method=multiple_choice_separate_calibrated,model=huggingface_gpt-j-6b.csv' #'imdb:model=huggingface_gpt-j-6b.csv' #"mmlu:subject=us_foreign_policy,method=multiple_choice_joint,model=huggingface_gpt-j-6b.csv" #"msmarco:track=regular,valid_topk=30,model=huggingface_gpt-j-6b.csv" #"msmarco:track=trec,valid_topk=30,model=huggingface_gpt-j-6b.csv" #"narrative_qa:model=huggingface_gpt-j-6b.csv"
         data_file = f"/scratch/cnicholas/helm/dataset/{data_name}"
         input_list_batched = get_helm_data_list(data_file, prepend_text, k, tokenizer, context_window, num_examples = 5, batch_size = 1, num_instances = 2)
         # input_list_batched = get_data_list(df, prepend_text, k, tokenizer, context_window, num_examples = 5, batch_size = 1)
