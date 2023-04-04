@@ -7,6 +7,7 @@ If user puts in a -k, it will mean they want the tokens in reverse.
 """
 import urllib.request, json
 import pandas as pd
+import numpy as np
 from llama.tokenizer import Tokenizer
 from ast import literal_eval
 
@@ -22,12 +23,18 @@ def get_helm_data_list(df_file, prepend_text, k, tokenizer, context_window, num_
     df["train_instance_blocks"] = df["train_instance_blocks"].apply(literal_eval)
     instructions = df["instructions_block"][0]
     assert instructions != "instructions_block"
+    # print("instructions: ", instructions)
+    if type(instructions) is not str and np.isnan(instructions):
+        instructions = ""
+    # print("instructions: ", instructions)
+    instance_prefix = df["instance_prefix"][0]
+    # print("instance prefix: ", instance_prefix)
     
     few_shot = df["train_instance_blocks"][0]    
     input_list = df["eval_instance_block"].tolist()
     if num_instances > 0:
         input_list = input_list[:num_instances]
-    input_list = [truncate_example(prepend_text, k, text, few_shot, tokenizer, context_window, max_gen_len) for text in input_list]
+    input_list = [truncate_example(prepend_text, k, instructions, text, few_shot, tokenizer, context_window, max_gen_len) for text in input_list]
 	
 	# Now put into batches
     input_list_batched = [input_list[i: i + batch_size] for i in range(0, len(input_list), batch_size)] 
@@ -64,25 +71,25 @@ def get_data_list(df, prepend_text, k, tokenizer, context_window, num_examples=5
     few_shot = df_final["request.prompt"].str.split(beginning_prompt)[0][1:num_examples + 1]
     few_shot = [ex.strip() for ex in few_shot]
     # TODO: Add instance ids so each example can be identified (though is probably in correct order so can go 1 by 1?)
-    input_list = [truncate_example(prepend_text, k, text, few_shot, tokenizer, context_window, max_gen_len) for text in input_list]
+    input_list = [truncate_example(prepend_text, k, instructions, text, few_shot, tokenizer, context_window, max_gen_len) for text in input_list]
     
     # Now put into batches
     input_list_batched = [input_list[i: i + batch_size] for i in range(0, len(input_list), batch_size)] 
     
     return input_list_batched
 
-def truncate_example(prepend_text, k, text, few_shot, tokenizer, context_window, max_gen_len):
+def truncate_example(prepend_text, k, instructions, text, few_shot, tokenizer, context_window, max_gen_len):
         """Given input prompt of text, will truncate by removing few-shot examples one-by-one until they fit the context window of the model.
         
         Same as in HELM.
 
         """
-        current_text = get_full_text(prepend_text, k, text, few_shot, len(few_shot))
+        current_text = get_full_text(prepend_text, k, instructions, text, few_shot, len(few_shot))
         few_shot_instances = len(few_shot)
         while few_shot_instances > 0:
                 if not fits_within_context_window(current_text, context_window, max_gen_len, tokenizer):
                         few_shot_instances -= 1
-                        current_text =  get_full_text(prepend_text, k, text, few_shot, few_shot_instances)
+                        current_text =  get_full_text(prepend_text, k, instructions, text, few_shot, few_shot_instances)
                 else:
                         removed_train_instances_count = len(few_shot) - few_shot_instances
                         #if removed_train_instances_count > 0:
@@ -94,14 +101,15 @@ def truncate_example(prepend_text, k, text, few_shot, tokenizer, context_window,
                         return current_text     
         return truncate_from_right(current_text, context_window, max_gen_len, tokenizer)
 
-def get_full_text(prepend_text, k, text, few_shot, few_shot_instances):
+def get_full_text(prepend_text, k, instructions, text, few_shot, few_shot_instances):
         """Given text and few-shot examples, will return the full text. If k < 0 will reverse use k words in reverse instead."""
         prepend_text = prepend_text + "\n" if prepend_text != '' else ''
         k_words = " ".join(text.split()[-abs(k):])
         if k < 0:
                 k_words = " ".join(reversed(k_words.split()))
-        k_words = k_words + "\n\n" if k_words != 0 else ''
-        return prepend_text + k_words + "\n\n".join(few_shot[:few_shot_instances]) + "\n\n" + text # In their example, each few-shot separated by \n\n
+        k_words = k_words + "\n\n" if k != 0 else ''
+        instructions = instructions + "\n" if instructions != '' else ''
+        return prepend_text + k_words + instructions + "\n".join(few_shot[:few_shot_instances]) + "\n" + text # In their example, each few-shot separated by \n\n
 
 def fits_within_context_window(full_text, context_window, max_gen_len, tokenizer):
         """
@@ -137,8 +145,10 @@ if __name__ == "__main__":
         # df = get_data(data_url)
         tokenizer = Tokenizer("weights/tokenizer.model")
         prepend_text = "You are an attention mechanism."
-        k = 5
+        k = 0
         context_window = 2048
-        input_list_batched = get_helm_data_list("/scratch/cnicholas/helm/dataset", prepend_text, k, tokenizer, context_window, num_examples = 5, batch_size = 1)
+        data_name = 'natural_qa:mode=openbook_longans,model=huggingface_gpt-j-6b.csv' #'quac:model=huggingface_gpt-j-6b.csv' #'raft:subset=one_stop_english,model=huggingface_gpt-j-6b.csv' #'truthful_qa:task=mc_single,method=multiple_choice_joint,model=huggingface_gpt-j-6b.csv' #'summarization_xsum:temperature=0.3,device=cpu,model=huggingface_gpt-j-6b.csv' #'summarization_cnndm:temperature=0.3,device=cpu,model=huggingface_gpt-j-6b.csv' #'boolq:model=huggingface_gpt-j-6b.csv' #'civil_comments:demographic=white,model=huggingface_gpt-j-6b.csv' #'commonsense:dataset=hellaswag,method=multiple_choice_separate_original,model=huggingface_gpt-j-6b.csv' #'commonsense:dataset=openbookqa,method=multiple_choice_separate_calibrated,model=huggingface_gpt-j-6b.csv' #'imdb:model=huggingface_gpt-j-6b.csv' #"mmlu:subject=us_foreign_policy,method=multiple_choice_joint,model=huggingface_gpt-j-6b.csv" #"msmarco:track=regular,valid_topk=30,model=huggingface_gpt-j-6b.csv" #"msmarco:track=trec,valid_topk=30,model=huggingface_gpt-j-6b.csv" #"narrative_qa:model=huggingface_gpt-j-6b.csv"
+        data_file = f"/scratch/cnicholas/helm/dataset/{data_name}"
+        input_list_batched = get_helm_data_list(data_file, prepend_text, k, tokenizer, context_window, num_examples = 5, batch_size = 1, num_instances = 2)
         # input_list_batched = get_data_list(df, prepend_text, k, tokenizer, context_window, num_examples = 5, batch_size = 1)
         print(input_list_batched)
