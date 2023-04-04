@@ -7,6 +7,7 @@ If user puts in a -k, it will mean they want the tokens in reverse.
 """
 import urllib.request, json
 import pandas as pd
+import numpy as np
 from llama.tokenizer import Tokenizer
 from ast import literal_eval
 
@@ -22,12 +23,17 @@ def get_helm_data_list(df_file, prepend_text, k, tokenizer, context_window, num_
     df["train_instance_blocks"] = df["train_instance_blocks"].apply(literal_eval)
     instructions = df["instructions_block"][0]
     assert instructions != "instructions_block"
+    if np.isnan(instructions):
+        instructions = ""
+    # print("instructions: ", instructions)
+    instance_prefix = df["instance_prefix"][0]
+    # print("instance prefix: ", instance_prefix)
     
     few_shot = df["train_instance_blocks"][0]    
     input_list = df["eval_instance_block"].tolist()
     if num_instances > 0:
         input_list = input_list[:num_instances]
-    input_list = [truncate_example(prepend_text, k, text, few_shot, tokenizer, context_window, max_gen_len) for text in input_list]
+    input_list = [truncate_example(prepend_text, k, instructions + instance_prefix + text, few_shot, tokenizer, context_window, max_gen_len) for text in input_list]
 	
 	# Now put into batches
     input_list_batched = [input_list[i: i + batch_size] for i in range(0, len(input_list), batch_size)] 
@@ -100,8 +106,8 @@ def get_full_text(prepend_text, k, text, few_shot, few_shot_instances):
         k_words = " ".join(text.split()[-abs(k):])
         if k < 0:
                 k_words = " ".join(reversed(k_words.split()))
-        k_words = k_words + "\n\n" if k_words != 0 else ''
-        return prepend_text + k_words + "\n\n".join(few_shot[:few_shot_instances]) + "\n\n" + text # In their example, each few-shot separated by \n\n
+        k_words = k_words + "\n\n" if k != 0 else ''
+        return prepend_text + k_words + "\n".join(few_shot[:few_shot_instances]) + text # In their example, each few-shot separated by \n\n
 
 def fits_within_context_window(full_text, context_window, max_gen_len, tokenizer):
         """
@@ -137,8 +143,9 @@ if __name__ == "__main__":
         # df = get_data(data_url)
         tokenizer = Tokenizer("weights/tokenizer.model")
         prepend_text = "You are an attention mechanism."
-        k = 5
+        k = 0
         context_window = 2048
-        input_list_batched = get_helm_data_list("/scratch/cnicholas/helm/dataset", prepend_text, k, tokenizer, context_window, num_examples = 5, batch_size = 1)
+        data_file = "/scratch/cnicholas/helm/dataset/natural_qa:mode=closedbook,model=huggingface_gpt-j-6b.csv"
+        input_list_batched = get_helm_data_list(data_file, prepend_text, k, tokenizer, context_window, num_examples = 5, batch_size = 1, num_instances = 2)
         # input_list_batched = get_data_list(df, prepend_text, k, tokenizer, context_window, num_examples = 5, batch_size = 1)
         print(input_list_batched)
