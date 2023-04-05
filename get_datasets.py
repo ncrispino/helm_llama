@@ -110,29 +110,48 @@ def get_prompt_map():
             2. Consider the context of the paragraph and the intended audience before making a determination.
             3. Look for patterns or repeated language that may indicate a toxic or harmful message.
             4. Use your knowledge of common toxic language and hate speech to identify problematic language.
-            5. If in doubt, err on the side of caution and flag the paragraph for further review by a human moderator."""
+            5. If in doubt, err on the side of caution and flag the paragraph for further review by a human moderator.""",
+            """Passage: The Little White Bird includes episodes set in London and Kensington Gardens. The third section is set in London with a brief diversion to Patagonia, where a ship returns to England.
+            Question: Where was the ship in Pentagonia returned to?
+            Answer: England
+
+            Passage: The film explores Dean and Cindy's relationship. Dean is beaten up by Cindy's ex-boyfriend, Bobby, before their wedding.
+            Question: Who beats up Dean before the wedding?
+            Answer: Bobby
+
+            Passage: Prince Amerigo and Maggie are to be married in London. Amerigo and Charlotte have a past relationship, and Maggie doesn't know about it.
+            Question: Where is Prince and Maggie to be married?
+            Answer: London
+
+            Passage: The film is set in Tibet, where the Chinese communists invade and oppress the Tibetans. The Dalai Lama eventually flees to India.
+            Question: What country is oppressing the Tibetians?
+            Answer: China
+
+            Passage: In the Fuzzy series, the Charterless Zarathustra Company and the planet's new governor cooperate to control the planet and deal with criminals stealing sunstones.
+            Question: Why are the government of Zarathustra and the now Charterless Zarathustra Company cooperating with each other?
+            Answer: Criminals are taking advantage of the unstable government and company to attack and steal sunstones."""
     ]
     return dict(zip(range(1, len(prompts) + 1), prompts))
 
 if __name__=="__main__":
     print(dataset_map())
+    print(get_prompt_map())
 
-    tokenizer = Tokenizer("weights/tokenizer.model")
-    prepend_text = "You are an attention mechanism."
+    #tokenizer = Tokenizer("weights/tokenizer.model")
+    #prepend_text = "You are an attention mechanism."
     k = 5
     context_window = 2048
 
 
-    urls = list(dataset_map().values())
+    #urls = list(dataset_map().values())
 
-    for data_url in urls:
-        df = get_data(data_url)
-        input_list_batched = get_data_list(df, prepend_text, k, tokenizer, context_window, num_examples = 5, batch_size = 1)
-        data_name = get_data_name(data_url)
-        print('data name: ', data_name)
-        print('len of data: ', len(input_list_batched))
-        with open(f'datasets/{data_name}.json', 'w') as f:
-            json.dump(input_list_batched, f)
+    #for data_url in urls:
+        #df = get_data(data_url)
+        #input_list_batched = get_data_list(df, prepend_text, k, tokenizer, context_window, num_examples = 5, batch_size = 1)
+        #data_name = get_data_name(data_url)
+        #print('data name: ', data_name)
+        #print('len of data: ', len(input_list_batched))
+        #with open(f'datasets/{data_name}.json', 'w') as f:
+        #    json.dump(input_list_batched, f)
         # print(input_list_batched)
-
 
