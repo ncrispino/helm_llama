@@ -38,7 +38,12 @@ def get_helm_data_list(df_file, prepend_text, k, tokenizer, context_window, num_
     # print("instance prefix: ", instance_prefix)
     
     few_shot = df["train_instance_blocks"][0]    
+<<<<<<< HEAD
     full_input_list = list(zip(df["eval_instance_block"], df["instance_id"])) # df[["eval_instance_block", "instance_id"]]
+=======
+    print("few shot: ", few_shot)
+    full_input_list = df["eval_instance_block"].tolist()
+>>>>>>> b30e40a5a8a10e0110bb6b33b3e181fec2203ad0
     if num_instances > 0:
         full_input_list = full_input_list[:num_instances]
     # input_list = [truncate_example(prepend_text, k, instructions, text, few_shot, tokenizer, context_window, max_gen_len, num_examples) for text in input_list]
@@ -166,7 +171,7 @@ def get_full_text(prepend_text, k, instructions, text, few_shot, few_shot_instan
                 k_words = " ".join(reversed(k_words.split()))
         k_words = k_words + "\n\n" if k != 0 else ''
         instructions = instructions + "\n" if instructions != '' else ''
-        return prepend_text + k_words + instructions + "\n".join(few_shot[:few_shot_instances]) + "\n" + text # In their example, each few-shot separated by \n\n
+        return k_words + prepend_text + instructions + "\n".join(few_shot[:few_shot_instances]) + "\n" + text # In their example, each few-shot separated by \n\n
 
 def fits_within_context_window(full_text, context_window, max_gen_len, tokenizer):
         """
@@ -201,7 +206,7 @@ def isolate_output(prompts, decoded):
 
 if __name__ == "__main__":        
         # data_url = "https://storage.googleapis.com/crfm-helm-public/benchmark_output/runs/v0.2.2/narrative_qa:model=openai_text-davinci-003,data_augmentation=canonical/scenario_state.json"
-        num_instances = 5
+        num_instances = 20
         # df = get_data(data_url)
         tokenizer = Tokenizer("/scratch/llama/weights/tokenizer.model")
         prepend_text = "You are an attention mechanism."
