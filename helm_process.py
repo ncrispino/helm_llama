@@ -23,7 +23,7 @@ def get_data(data_url):
 def get_helm_data_list(df_file, prepend_text, k, tokenizer, context_window, num_examples=5, batch_size=1, max_gen_len=100, num_instances = 0):
     """Given a path to a csv storing inputs taken in HELM format, will create a prompt for each instance to pass to the model. 
     
-    Includes few-shot examples, if any.
+    Includes few-shot examples, if any. Returns a list of a list of dicts, where each dict represents one instance and each inner list represents one batch.
     """
     df = pd.read_csv(df_file, quotechar='"') # Need quotechar for literal_eval to work.
     df = df.query("eval_instance_block != 'eval_instance_block'").copy()
@@ -38,12 +38,8 @@ def get_helm_data_list(df_file, prepend_text, k, tokenizer, context_window, num_
     # print("instance prefix: ", instance_prefix)
     
     few_shot = df["train_instance_blocks"][0]    
-<<<<<<< HEAD
     full_input_list = list(zip(df["eval_instance_block"], df["instance_id"])) # df[["eval_instance_block", "instance_id"]]
-=======
-    print("few shot: ", few_shot)
-    full_input_list = df["eval_instance_block"].tolist()
->>>>>>> b30e40a5a8a10e0110bb6b33b3e181fec2203ad0
+    # print("few shot: ", few_shot)
     if num_instances > 0:
         full_input_list = full_input_list[:num_instances]
     # input_list = [truncate_example(prepend_text, k, instructions, text, few_shot, tokenizer, context_window, max_gen_len, num_examples) for text in input_list]
@@ -52,7 +48,7 @@ def get_helm_data_list(df_file, prepend_text, k, tokenizer, context_window, num_
     # Adding instance id to match.
     for text, instance_id in full_input_list:
         truncated_input, num_fs_used = truncate_example(prepend_text, k, instructions, text, few_shot, tokenizer, context_window, max_gen_len, num_examples)
-        input_list.append((truncated_input, instance_id))
+        input_list.append({"input": truncated_input, "instance_id": instance_id})
         total_fs_used.append(num_fs_used)
         
     # Now put into batches

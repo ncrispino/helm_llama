@@ -68,7 +68,7 @@ def load(
 def main(
     ckpt_dir: str,
     tokenizer_path: str,
-    temperature: float = 0, # may need to set differently by dataset
+    temperature: float = 0, # TODO: may need to set differently by dataset
     top_p: float = 1, # previously 0.95
     max_seq_len: int = 2048,
     max_batch_size: int = 1,
@@ -96,29 +96,35 @@ def main(
     # get prompt based on prompt id
     prepend_text = get_prompt_map()[p_id]
 
-    dataset_path = "/storage1/chenguangwang/Active/llama_system/dataset/{dataset_file}"
-    print("dataset path: ", dataset_path)
-    input_list_batched = get_helm_data_list(f"/storage1/chenguangwang/Active/llama_system/dataset/{dataset_file}", prepend_text, k, tokenizer, max_seq_len, num_examples = num_examples, batch_size = max_batch_size, num_instances = num_instances)
+    dataset_path = f"/storage1/chenguangwang/Active/llama_system/dataset/{dataset_file}"
+    # print("dataset path: ", dataset_path)
+    # The below is a list of a list of dicts (of size batch size), each with input and instance id.
+    input_list_batched = get_helm_data_list(dataset_path, prepend_text, k, tokenizer, max_seq_len, num_examples = num_examples, batch_size = max_batch_size, num_instances = num_instances)
     data_name = get_helm_data_name(dataset_file)
     print('data name: ', data_name)
     print('len of data: ', len(input_list_batched))    
     output_list = []
     i = 0
-    for input_list, instance_id in input_list_batched:
-        i += len(input_list)
-        if i % 5 == 0:
-            print("i: ", i)
-        prompts = input_list
+    # ASSUME each input has a unique instance id.
+    output_dict = dict()
+    for dict_list in input_list_batched:
+        prompts = [d["input"] for d in dict_list]
+        instance_ids = [d["instance_id"] for d in dict_list]
         results = generator.generate(
             prompts, max_gen_len=max_new_tokens, temperature=temperature, top_p=top_p
         )
+        i += len(dict_list)
+        if i % 4 == 0:
+            print("i: ", i)
 
         outputs = isolate_output(prompts, results)
-        output_list.append(outputs)
+        for inid, out in zip(instance_ids, outputs):
+            output_dict[inid] = out
         # for result in results:        
         #    print(result)
         #    print("\n==================================\n")
-    output_dict = dict(zip(range(1, len(output_list) + 1), output_list))
+    # output_dict = dict(zip(range(1, len(output_list) + 1), output_list))
+    # print(output_dict)
 
     output_dir = "/storage1/chenguangwang/Active/llama_system/output"
     # output_dir = "output"
