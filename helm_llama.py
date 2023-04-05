@@ -118,8 +118,8 @@ def main(
         #    print("\n==================================\n")
     output_dict = dict(zip(range(1, len(output_list) + 1), output_list))
 
-    # output_dir = "/storage1/chenguangwang/Active/llama_system/output"
-    output_dir = "output"
+    output_dir = "/storage1/chenguangwang/Active/llama_system/output"
+    # output_dir = "output"
     with open(f'{output_dir}/{data_id}_{p_id}_{k}_samples{num_instances}.json', 'w') as f:
         json.dump(output_dict, f)
     # return output_list
