@@ -38,15 +38,16 @@ def get_helm_data_list(df_file, prepend_text, k, tokenizer, context_window, num_
     # print("instance prefix: ", instance_prefix)
     
     few_shot = df["train_instance_blocks"][0]    
-    full_input_list = df["eval_instance_block"].tolist()
+    full_input_list = list(zip(df["eval_instance_block"], df["instance_id"])) # df[["eval_instance_block", "instance_id"]]
     if num_instances > 0:
         full_input_list = full_input_list[:num_instances]
     # input_list = [truncate_example(prepend_text, k, instructions, text, few_shot, tokenizer, context_window, max_gen_len, num_examples) for text in input_list]
     input_list = []
     total_fs_used = []
-    for text in full_input_list:
+    # Adding instance id to match.
+    for text, instance_id in full_input_list:
         truncated_input, num_fs_used = truncate_example(prepend_text, k, instructions, text, few_shot, tokenizer, context_window, max_gen_len, num_examples)
-        input_list.append(truncated_input)
+        input_list.append((truncated_input, instance_id))
         total_fs_used.append(num_fs_used)
         
     # Now put into batches
@@ -98,7 +99,7 @@ def get_helm_labels(label_file, num_instances):
     df = pd.read_csv(label_file, quotechar='"')
     df["references"] = df["references"].apply(parse_output_string)
     # labels = df["isolated_output"].to_list()
-    labels = df["references"].tolist()
+    labels = list(zip(df["references"], df["instance_id"])) # df[["references", "instance_id"]].to_list()
     if num_instances > 0:
         labels = labels[:num_instances]
     return dict(zip(range(1, len(labels) + 1), labels))
@@ -200,16 +201,17 @@ def isolate_output(prompts, decoded):
 
 if __name__ == "__main__":        
         # data_url = "https://storage.googleapis.com/crfm-helm-public/benchmark_output/runs/v0.2.2/narrative_qa:model=openai_text-davinci-003,data_augmentation=canonical/scenario_state.json"
-        num_instances = 2
+        num_instances = 5
         # df = get_data(data_url)
         tokenizer = Tokenizer("/scratch/llama/weights/tokenizer.model")
         prepend_text = "You are an attention mechanism."
         k = 0
+        num_examples = 0
         context_window = 2048
-        data_name = 'commonsense:dataset=openbookqa,method=multiple_choice_joint,model=huggingface_gpt-j-6b.csv' #'commonsense:dataset=hellaswag,method=multiple_choice_separate_original,model=huggingface_gpt-j-6b.csv' #'quac:model=huggingface_gpt-j-6b.csv' #'msmarco:track=regular,valid_topk=30,model=huggingface_gpt-j-6b.csv' #'mmlu:subject=econometrics,method=multiple_choice_joint,model=huggingface_gpt-j-6b.csv' #'natural_qa:mode=openbook_longans,model=huggingface_gpt-j-6b.csv' #'quac:model=huggingface_gpt-j-6b.csv' #'raft:subset=one_stop_english,model=huggingface_gpt-j-6b.csv' #'truthful_qa:task=mc_single,method=multiple_choice_joint,model=huggingface_gpt-j-6b.csv' #'summarization_xsum:temperature=0.3,device=cpu,model=huggingface_gpt-j-6b.csv' #'summarization_cnndm:temperature=0.3,device=cpu,model=huggingface_gpt-j-6b.csv' #'boolq:model=huggingface_gpt-j-6b.csv' #'civil_comments:demographic=white,model=huggingface_gpt-j-6b.csv' #'commonsense:dataset=hellaswag,method=multiple_choice_separate_original,model=huggingface_gpt-j-6b.csv' #'commonsense:dataset=openbookqa,method=multiple_choice_separate_calibrated,model=huggingface_gpt-j-6b.csv' #'imdb:model=huggingface_gpt-j-6b.csv' #"mmlu:subject=us_foreign_policy,method=multiple_choice_joint,model=huggingface_gpt-j-6b.csv" #"msmarco:track=regular,valid_topk=30,model=huggingface_gpt-j-6b.csv" #"msmarco:track=trec,valid_topk=30,model=huggingface_gpt-j-6b.csv" #"narrative_qa:model=huggingface_gpt-j-6b.csv"
+        data_name = 'msmarco:track=regular,valid_topk=30,model=huggingface_gpt-j-6b.csv' #'narrative_qa:model=huggingface_gpt-j-6b.csv' #'imdb:model=huggingface_gpt-j-6b.csv' #'commonsense:dataset=openbookqa,method=multiple_choice_joint,model=huggingface_gpt-j-6b.csv' #'commonsense:dataset=hellaswag,method=multiple_choice_separate_original,model=huggingface_gpt-j-6b.csv' #'quac:model=huggingface_gpt-j-6b.csv' #'msmarco:track=regular,valid_topk=30,model=huggingface_gpt-j-6b.csv' #'mmlu:subject=econometrics,method=multiple_choice_joint,model=huggingface_gpt-j-6b.csv' #'natural_qa:mode=openbook_longans,model=huggingface_gpt-j-6b.csv' #'quac:model=huggingface_gpt-j-6b.csv' #'raft:subset=one_stop_english,model=huggingface_gpt-j-6b.csv' #'truthful_qa:task=mc_single,method=multiple_choice_joint,model=huggingface_gpt-j-6b.csv' #'summarization_xsum:temperature=0.3,device=cpu,model=huggingface_gpt-j-6b.csv' #'summarization_cnndm:temperature=0.3,device=cpu,model=huggingface_gpt-j-6b.csv' #'boolq:model=huggingface_gpt-j-6b.csv' #'civil_comments:demographic=white,model=huggingface_gpt-j-6b.csv' #'commonsense:dataset=hellaswag,method=multiple_choice_separate_original,model=huggingface_gpt-j-6b.csv' #'commonsense:dataset=openbookqa,method=multiple_choice_separate_calibrated,model=huggingface_gpt-j-6b.csv' #'imdb:model=huggingface_gpt-j-6b.csv' #"mmlu:subject=us_foreign_policy,method=multiple_choice_joint,model=huggingface_gpt-j-6b.csv" #"msmarco:track=regular,valid_topk=30,model=huggingface_gpt-j-6b.csv" #"msmarco:track=trec,valid_topk=30,model=huggingface_gpt-j-6b.csv" #"narrative_qa:model=huggingface_gpt-j-6b.csv"
         data_file = f"/scratch/cnicholas/helm/dataset/{data_name}"
-        input_list_batched = get_helm_data_list(data_file, prepend_text, k, tokenizer, context_window, num_examples = 2, batch_size = 1, num_instances = num_instances)
-        print(input_list_batched)
+        input_list_batched = get_helm_data_list(data_file, prepend_text, k, tokenizer, context_window, num_examples = num_examples, batch_size = 1, num_instances = num_instances)
+        print([i for i in input_list_batched])
 
         # For Labels
         label_name = f'labels_{data_name}'

@@ -96,13 +96,15 @@ def main(
     # get prompt based on prompt id
     prepend_text = get_prompt_map()[p_id]
 
-    input_list_batched = get_helm_data_list(f"/scratch/cnicholas/helm/dataset/{dataset_file}", prepend_text, k, tokenizer, max_seq_len, num_examples = num_examples, batch_size = max_batch_size, num_instances = num_instances)
+    dataset_path = "/storage1/chenguangwang/Active/llama_system/dataset/{dataset_file}"
+    print("dataset path: ", dataset_path)
+    input_list_batched = get_helm_data_list(f"/storage1/chenguangwang/Active/llama_system/dataset/{dataset_file}", prepend_text, k, tokenizer, max_seq_len, num_examples = num_examples, batch_size = max_batch_size, num_instances = num_instances)
     data_name = get_helm_data_name(dataset_file)
     print('data name: ', data_name)
     print('len of data: ', len(input_list_batched))    
     output_list = []
     i = 0
-    for input_list in input_list_batched:
+    for input_list, instance_id in input_list_batched:
         i += len(input_list)
         if i % 5 == 0:
             print("i: ", i)
@@ -118,8 +120,8 @@ def main(
         #    print("\n==================================\n")
     output_dict = dict(zip(range(1, len(output_list) + 1), output_list))
 
-    # output_dir = "/storage1/chenguangwang/Active/llama_system/output"
-    output_dir = "output"
+    output_dir = "/storage1/chenguangwang/Active/llama_system/output"
+    # output_dir = "output"
     with open(f'{output_dir}/{data_id}_{p_id}_{k}_samples{num_instances}.json', 'w') as f:
         json.dump(output_dict, f)
     # return output_list
