@@ -87,6 +87,25 @@ def get_helm_data_name(file):
 
 def get_prompt_map():
     # Only accounts for prompt id.
+    few_shot_summarized = """Passage: The Little White Bird includes episodes set in London and Kensington Gardens. The third section is set in London with a brief diversion to Patagonia, where a ship returns to England.
+    Question: Where was the ship in Pentagonia returned to?
+    Answer: England
+
+    Passage: The film explores Dean and Cindy's relationship. Dean is beaten up by Cindy's ex-boyfriend, Bobby, before their wedding.
+    Question: Who beats up Dean before the wedding?
+    Answer: Bobby
+
+    Passage: Prince Amerigo and Maggie are to be married in London. Amerigo and Charlotte have a past relationship, and Maggie doesn't know about it.
+    Question: Where is Prince and Maggie to be married?
+    Answer: London
+
+    Passage: The film is set in Tibet, where the Chinese communists invade and oppress the Tibetans. The Dalai Lama eventually flees to India.
+    Question: What country is oppressing the Tibetians?
+    Answer: China
+
+    Passage: In the Fuzzy series, the Charterless Zarathustra Company and the planet's new governor cooperate to control the planet and deal with criminals stealing sunstones.
+    Question: Why are the government of Zarathustra and the now Charterless Zarathustra Company cooperating with each other?
+    Answer: Criminals are taking advantage of the unstable government and company to attack and steal sunstones."""
     prompts = ['', 
             '', 
             '', 
@@ -148,7 +167,10 @@ def get_prompt_map():
     
     Passage: In the Fuzzy series, the Charterless Zarathustra Company and the planet's new governor cooperate to control the planet and deal with criminals stealing sunstones.
     Question: Why are the government of Zarathustra and the now Charterless Zarathustra Company cooperating with each other?
-    Answer: Criminals are taking advantage of the unstable government and company to attack and steal sunstones."""
+    Answer: Criminals are taking advantage of the unstable government and company to attack and steal sunstones.""",
+            "You are an attention model.\n" + few_shot_summarized,
+            "You are a powerful bidirectional attention model. Pay attention to this:\n" + few_shot_summarized,
+            "You are a question answerer. Pay attention to the following examples, then read the whole passage and answer the question as accurately as possible.\n" + few_shot_summarized
     ]
     return dict(zip(range(1, len(prompts) + 1), prompts))
 
