@@ -14,6 +14,7 @@ import ast
 import re
 
 def get_data(data_url):
+    """THIS IS FORMATTED FOR THE HELM JSON, not the local HELM files downloaded from their code."""
     with urllib.request.urlopen(data_url) as url:
        data = json.load(url)
        data = data["request_states"]
@@ -37,13 +38,23 @@ def get_helm_data_list(df_file, prepend_text, k, tokenizer, context_window, num_
     # print("instance prefix: ", instance_prefix)
     
     few_shot = df["train_instance_blocks"][0]    
-    input_list = df["eval_instance_block"].tolist()
+    full_input_list = df["eval_instance_block"].tolist()
     if num_instances > 0:
-        input_list = input_list[:num_instances]
-    input_list = [truncate_example(prepend_text, k, instructions, text, few_shot, tokenizer, context_window, max_gen_len) for text in input_list]
+        full_input_list = full_input_list[:num_instances]
+    # input_list = [truncate_example(prepend_text, k, instructions, text, few_shot, tokenizer, context_window, max_gen_len, num_examples) for text in input_list]
+    input_list = []
+    total_fs_used = []
+    for text in full_input_list:
+        truncated_input, num_fs_used = truncate_example(prepend_text, k, instructions, text, few_shot, tokenizer, context_window, max_gen_len, num_examples)
+        input_list.append(truncated_input)
+        total_fs_used.append(num_fs_used)
         
-        # Now put into batches
+    # Now put into batches
     input_list_batched = [input_list[i: i + batch_size] for i in range(0, len(input_list), batch_size)] 
+
+    # Print data about fs used.
+    df = pd.DataFrame(total_fs_used)
+    print("Summary statistics for number of few-shot examples:\n", df.describe())
     
     return input_list_batched
 
@@ -97,6 +108,8 @@ def get_data_list(df, prepend_text, k, tokenizer, context_window, num_examples=5
     """Given a pandas df will get all samples from first trial and truncate based on system instruction and k tokens.
 
     Returns a list of lists, each of length batch_size.
+
+    THIS IS FORMATTED FOR THE HELM JSON, not the local HELM files downloaded from their code.
     """
     # Find no perturbations
     no_perturbations = df["instance.perturbation.computed_on"].isna()
@@ -114,35 +127,35 @@ def get_data_list(df, prepend_text, k, tokenizer, context_window, num_examples=5
     few_shot = df_final["request.prompt"].str.split(beginning_prompt)[0][1:num_examples + 1]
     few_shot = [ex.strip() for ex in few_shot]
     # TODO: Add instance ids so each example can be identified (though is probably in correct order so can go 1 by 1?)
-    input_list = [truncate_example(prepend_text, k, instructions, text, few_shot, tokenizer, context_window, max_gen_len) for text in input_list]
+    input_list = [truncate_example(prepend_text, k, instructions, text, few_shot, tokenizer, context_window, max_gen_len, num_examples) for text in input_list]
     
     # Now put into batches
     input_list_batched = [input_list[i: i + batch_size] for i in range(0, len(input_list), batch_size)] 
     
     return input_list_batched
 
-def truncate_example(prepend_text, k, instructions, text, few_shot, tokenizer, context_window, max_gen_len):
+def truncate_example(prepend_text, k, instructions, text, few_shot, tokenizer, context_window, max_gen_len, num_examples):
         """Given input prompt of text, will truncate by removing few-shot examples one-by-one until they fit the context window of the model.
         
-        Same as in HELM.
+        Same as in HELM, but will return the number of few_shot examples used due to truncation.
 
         """
-        current_text = get_full_text(prepend_text, k, instructions, text, few_shot, len(few_shot))
-        few_shot_instances = len(few_shot)
+        current_text = get_full_text(prepend_text, k, instructions, text, few_shot, num_examples)
+        few_shot_instances = num_examples
         while few_shot_instances > 0:
                 if not fits_within_context_window(current_text, context_window, max_gen_len, tokenizer):
                         few_shot_instances -= 1
                         current_text =  get_full_text(prepend_text, k, instructions, text, few_shot, few_shot_instances)
                 else:
-                        removed_train_instances_count = len(few_shot) - few_shot_instances
+                        removed_train_instances_count = num_examples - few_shot_instances
                         #if removed_train_instances_count > 0:
                         #        print(
                         #        f"The original constructed prompt exceeded the max context length. "
                         #        f"Removed {removed_train_instances_count} in-context examples to fit "
                         #        f"it within the context window."
                         #        )
-                        return current_text     
-        return truncate_from_right(current_text, context_window, max_gen_len, tokenizer)
+                        return current_text, few_shot_instances # removed_train_instances_count 
+        return truncate_from_right(current_text, context_window, max_gen_len, tokenizer), 0
 
 def get_full_text(prepend_text, k, instructions, text, few_shot, few_shot_instances):
         """Given text and few-shot examples, will return the full text. If k < 0 will reverse use k words in reverse instead."""
@@ -189,13 +202,13 @@ if __name__ == "__main__":
         # data_url = "https://storage.googleapis.com/crfm-helm-public/benchmark_output/runs/v0.2.2/narrative_qa:model=openai_text-davinci-003,data_augmentation=canonical/scenario_state.json"
         num_instances = 2
         # df = get_data(data_url)
-        tokenizer = Tokenizer("weights/tokenizer.model")
+        tokenizer = Tokenizer("/scratch/llama/weights/tokenizer.model")
         prepend_text = "You are an attention mechanism."
         k = 0
         context_window = 2048
-        data_name = 'commonsense:dataset=openbookqa,method=multiple_choice_separate_calibrated,model=huggingface_gpt-j-6b.csv' #'commonsense:dataset=hellaswag,method=multiple_choice_separate_original,model=huggingface_gpt-j-6b.csv' #'quac:model=huggingface_gpt-j-6b.csv' #'msmarco:track=regular,valid_topk=30,model=huggingface_gpt-j-6b.csv' #'mmlu:subject=econometrics,method=multiple_choice_joint,model=huggingface_gpt-j-6b.csv' #'natural_qa:mode=openbook_longans,model=huggingface_gpt-j-6b.csv' #'quac:model=huggingface_gpt-j-6b.csv' #'raft:subset=one_stop_english,model=huggingface_gpt-j-6b.csv' #'truthful_qa:task=mc_single,method=multiple_choice_joint,model=huggingface_gpt-j-6b.csv' #'summarization_xsum:temperature=0.3,device=cpu,model=huggingface_gpt-j-6b.csv' #'summarization_cnndm:temperature=0.3,device=cpu,model=huggingface_gpt-j-6b.csv' #'boolq:model=huggingface_gpt-j-6b.csv' #'civil_comments:demographic=white,model=huggingface_gpt-j-6b.csv' #'commonsense:dataset=hellaswag,method=multiple_choice_separate_original,model=huggingface_gpt-j-6b.csv' #'commonsense:dataset=openbookqa,method=multiple_choice_separate_calibrated,model=huggingface_gpt-j-6b.csv' #'imdb:model=huggingface_gpt-j-6b.csv' #"mmlu:subject=us_foreign_policy,method=multiple_choice_joint,model=huggingface_gpt-j-6b.csv" #"msmarco:track=regular,valid_topk=30,model=huggingface_gpt-j-6b.csv" #"msmarco:track=trec,valid_topk=30,model=huggingface_gpt-j-6b.csv" #"narrative_qa:model=huggingface_gpt-j-6b.csv"
+        data_name = 'commonsense:dataset=openbookqa,method=multiple_choice_joint,model=huggingface_gpt-j-6b.csv' #'commonsense:dataset=hellaswag,method=multiple_choice_separate_original,model=huggingface_gpt-j-6b.csv' #'quac:model=huggingface_gpt-j-6b.csv' #'msmarco:track=regular,valid_topk=30,model=huggingface_gpt-j-6b.csv' #'mmlu:subject=econometrics,method=multiple_choice_joint,model=huggingface_gpt-j-6b.csv' #'natural_qa:mode=openbook_longans,model=huggingface_gpt-j-6b.csv' #'quac:model=huggingface_gpt-j-6b.csv' #'raft:subset=one_stop_english,model=huggingface_gpt-j-6b.csv' #'truthful_qa:task=mc_single,method=multiple_choice_joint,model=huggingface_gpt-j-6b.csv' #'summarization_xsum:temperature=0.3,device=cpu,model=huggingface_gpt-j-6b.csv' #'summarization_cnndm:temperature=0.3,device=cpu,model=huggingface_gpt-j-6b.csv' #'boolq:model=huggingface_gpt-j-6b.csv' #'civil_comments:demographic=white,model=huggingface_gpt-j-6b.csv' #'commonsense:dataset=hellaswag,method=multiple_choice_separate_original,model=huggingface_gpt-j-6b.csv' #'commonsense:dataset=openbookqa,method=multiple_choice_separate_calibrated,model=huggingface_gpt-j-6b.csv' #'imdb:model=huggingface_gpt-j-6b.csv' #"mmlu:subject=us_foreign_policy,method=multiple_choice_joint,model=huggingface_gpt-j-6b.csv" #"msmarco:track=regular,valid_topk=30,model=huggingface_gpt-j-6b.csv" #"msmarco:track=trec,valid_topk=30,model=huggingface_gpt-j-6b.csv" #"narrative_qa:model=huggingface_gpt-j-6b.csv"
         data_file = f"/scratch/cnicholas/helm/dataset/{data_name}"
-        input_list_batched = get_helm_data_list(data_file, prepend_text, k, tokenizer, context_window, num_examples = 5, batch_size = 1, num_instances = num_instances)
+        input_list_batched = get_helm_data_list(data_file, prepend_text, k, tokenizer, context_window, num_examples = 2, batch_size = 1, num_instances = num_instances)
         print(input_list_batched)
 
         # For Labels
