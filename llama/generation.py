@@ -38,8 +38,11 @@ class LLaMA:
         input_text_mask = tokens != self.tokenizer.pad_id
         start_pos = min_prompt_size
         prev_pos = 0
+        # logit_list = []
         for cur_pos in range(start_pos, total_len):
             logits = self.model.forward(tokens[:, prev_pos:cur_pos], prev_pos)
+            # TODO: Get log probabilities to work.
+            # logit_list.append(logits) # only appends last logits
             if temperature > 0:
                 probs = torch.softmax(logits / temperature, dim=-1)
                 next_token = sample_top_p(probs, top_p)
@@ -62,6 +65,8 @@ class LLaMA:
                 t = t[: t.index(self.tokenizer.eos_id)]
             except ValueError:
                 pass
+            # TODO: Get to return (text, tokens, probability) tuple. Probabilities set to 0 for now.
+            # decoded.append((self.tokenizer.decode(t), t, 0)
             decoded.append(self.tokenizer.decode(t))
         return decoded
 

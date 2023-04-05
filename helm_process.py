@@ -20,6 +20,10 @@ def get_data(data_url):
     return pd.json_normalize(data)
 
 def get_helm_data_list(df_file, prepend_text, k, tokenizer, context_window, num_examples=5, batch_size=1, max_gen_len=100, num_instances = 0):
+    """Given a path to a csv storing inputs taken in HELM format, will create a prompt for each instance to pass to the model. 
+    
+    Includes few-shot examples, if any.
+    """
     df = pd.read_csv(df_file, quotechar='"') # Need quotechar for literal_eval to work.
     df = df.query("eval_instance_block != 'eval_instance_block'").copy()
     df["train_instance_blocks"] = df["train_instance_blocks"].apply(literal_eval)
@@ -37,8 +41,8 @@ def get_helm_data_list(df_file, prepend_text, k, tokenizer, context_window, num_
     if num_instances > 0:
         input_list = input_list[:num_instances]
     input_list = [truncate_example(prepend_text, k, instructions, text, few_shot, tokenizer, context_window, max_gen_len) for text in input_list]
-	
-	# Now put into batches
+        
+        # Now put into batches
     input_list_batched = [input_list[i: i + batch_size] for i in range(0, len(input_list), batch_size)] 
     
     return input_list_batched
@@ -163,21 +167,23 @@ def fits_within_context_window(full_text, context_window, max_gen_len, tokenizer
         )
 
 def truncate_from_right(x, context_window, max_gen_len, tokenizer):
+        """If input alone cannot fit in context window, truncate from right. Note this may cause bad predictions for the output."""
         # print("All few-shot examples were removed as the original constructed prompt plus any amount of few-shot examples exceeded the max prompt length.")
-        return tokenizer.decode(tokenizer.encode(x, bos=True, eos=False, max_seq_len=context_window + max_gen_len, truncate=True))
-        # return tokenizer.encode(x, bos=True, eos=False, max_seq_len=context_window + max_gen_len, truncate=True)            
+        return tokenizer.decode(tokenizer.encode(x, bos=True, eos=False, max_seq_len=context_window - max_gen_len, truncate=True))
+        # return tokenizer.encode(x, bos=True, eos=False, max_seq_len=context_window - max_gen_len, truncate=True)            
 
 def isolate_output(prompts, decoded):
-		"""Given list of prompts and decoded outputs, will return list of only outputs. 
+                """Given list of prompts and decoded outputs, will return list of only outputs.
         Also cuts off end of output after "\n\n" if it exists.
         """
-		outputs = []
-		for prompt, decode in zip(prompts, decoded):
-			output = decode[len(prompt) + 1:] # +1 to remove space after prompt			
-			if "\n\n" in output:
-				output = output.split("\n\n")[0]
-			outputs.append(output)
-		return outputs
+                outputs = []
+                for prompt, decode in zip(prompts, decoded):
+                        # decode = decode[0] # If input is (text,token,logit)
+                        output = decode[len(prompt) + 1:] # +1 to remove space after prompt                     
+                        if "\n\n" in output:
+                                output = output.split("\n\n")[0]
+                        outputs.append(output)
+                return outputs
 
 if __name__ == "__main__":        
         # data_url = "https://storage.googleapis.com/crfm-helm-public/benchmark_output/runs/v0.2.2/narrative_qa:model=openai_text-davinci-003,data_augmentation=canonical/scenario_state.json"
@@ -187,14 +193,13 @@ if __name__ == "__main__":
         prepend_text = "You are an attention mechanism."
         k = 0
         context_window = 2048
-        data_name = 'mmlu:subject=econometrics,method=multiple_choice_joint,model=huggingface_gpt-j-6b.csv' #'natural_qa:mode=openbook_longans,model=huggingface_gpt-j-6b.csv' #'quac:model=huggingface_gpt-j-6b.csv' #'raft:subset=one_stop_english,model=huggingface_gpt-j-6b.csv' #'truthful_qa:task=mc_single,method=multiple_choice_joint,model=huggingface_gpt-j-6b.csv' #'summarization_xsum:temperature=0.3,device=cpu,model=huggingface_gpt-j-6b.csv' #'summarization_cnndm:temperature=0.3,device=cpu,model=huggingface_gpt-j-6b.csv' #'boolq:model=huggingface_gpt-j-6b.csv' #'civil_comments:demographic=white,model=huggingface_gpt-j-6b.csv' #'commonsense:dataset=hellaswag,method=multiple_choice_separate_original,model=huggingface_gpt-j-6b.csv' #'commonsense:dataset=openbookqa,method=multiple_choice_separate_calibrated,model=huggingface_gpt-j-6b.csv' #'imdb:model=huggingface_gpt-j-6b.csv' #"mmlu:subject=us_foreign_policy,method=multiple_choice_joint,model=huggingface_gpt-j-6b.csv" #"msmarco:track=regular,valid_topk=30,model=huggingface_gpt-j-6b.csv" #"msmarco:track=trec,valid_topk=30,model=huggingface_gpt-j-6b.csv" #"narrative_qa:model=huggingface_gpt-j-6b.csv"
+        data_name = 'commonsense:dataset=openbookqa,method=multiple_choice_separate_calibrated,model=huggingface_gpt-j-6b.csv' #'commonsense:dataset=hellaswag,method=multiple_choice_separate_original,model=huggingface_gpt-j-6b.csv' #'quac:model=huggingface_gpt-j-6b.csv' #'msmarco:track=regular,valid_topk=30,model=huggingface_gpt-j-6b.csv' #'mmlu:subject=econometrics,method=multiple_choice_joint,model=huggingface_gpt-j-6b.csv' #'natural_qa:mode=openbook_longans,model=huggingface_gpt-j-6b.csv' #'quac:model=huggingface_gpt-j-6b.csv' #'raft:subset=one_stop_english,model=huggingface_gpt-j-6b.csv' #'truthful_qa:task=mc_single,method=multiple_choice_joint,model=huggingface_gpt-j-6b.csv' #'summarization_xsum:temperature=0.3,device=cpu,model=huggingface_gpt-j-6b.csv' #'summarization_cnndm:temperature=0.3,device=cpu,model=huggingface_gpt-j-6b.csv' #'boolq:model=huggingface_gpt-j-6b.csv' #'civil_comments:demographic=white,model=huggingface_gpt-j-6b.csv' #'commonsense:dataset=hellaswag,method=multiple_choice_separate_original,model=huggingface_gpt-j-6b.csv' #'commonsense:dataset=openbookqa,method=multiple_choice_separate_calibrated,model=huggingface_gpt-j-6b.csv' #'imdb:model=huggingface_gpt-j-6b.csv' #"mmlu:subject=us_foreign_policy,method=multiple_choice_joint,model=huggingface_gpt-j-6b.csv" #"msmarco:track=regular,valid_topk=30,model=huggingface_gpt-j-6b.csv" #"msmarco:track=trec,valid_topk=30,model=huggingface_gpt-j-6b.csv" #"narrative_qa:model=huggingface_gpt-j-6b.csv"
         data_file = f"/scratch/cnicholas/helm/dataset/{data_name}"
         input_list_batched = get_helm_data_list(data_file, prepend_text, k, tokenizer, context_window, num_examples = 5, batch_size = 1, num_instances = num_instances)
-        # input_list_batched = get_data_list(df, prepend_text, k, tokenizer, context_window, num_examples = 5, batch_size = 1)
-        # print(input_list_batched)
+        print(input_list_batched)
 
         # For Labels
-        label_name = 'labels_mmlu:subject=econometrics,method=multiple_choice_joint,model=huggingface_gpt-j-6b.csv'
+        label_name = f'labels_{data_name}'
         label_file = f"/scratch/cnicholas/helm/dataset/{label_name}"
         labels = get_helm_labels(label_file, num_instances)
         print("labels: ", labels)

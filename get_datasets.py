@@ -40,9 +40,9 @@ def helm_dataset_map():
         'civil_comments:demographic=other_religions,model=huggingface_gpt-j-6b.csv',
         'civil_comments:demographic=white,model=huggingface_gpt-j-6b.csv',
 
-        'commonsense:dataset=hellaswag,method=multiple_choice_separate_original,model=huggingface_gpt-j-6b.csv',
+        'commonsense:dataset=hellaswag,method=multiple_choice_joint,model=huggingface_gpt-j-6b.csv',
 
-        'commonsense:dataset=openbookqa,method=multiple_choice_separate_calibrated,model=huggingface_gpt-j-6b.csv',
+        'commonsense:dataset=openbookqa,method=multiple_choice_joint,model=huggingface_gpt-j-6b.csv',
 
         'imdb:model=huggingface_gpt-j-6b.csv',
 
