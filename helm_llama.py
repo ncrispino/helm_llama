@@ -103,6 +103,7 @@ def main(
     data_name = get_helm_data_name(dataset_file)
     print('data name: ', data_name)
     print('len of data: ', len(input_list_batched))    
+    print('Model name: ', os.environ["MODEL_SIZE"])
     output_list = []
     i = 0
     # ASSUME each input has a unique instance id.
@@ -113,6 +114,10 @@ def main(
         results = generator.generate(
             prompts, max_gen_len=max_new_tokens, temperature=temperature, top_p=top_p
         )
+        # Print one result.
+        if i == 0:
+            print("instance_id: ", instance_ids)
+            print("Result (including output): ", results[0])
         i += len(dict_list)
         if i % 4 == 0:
             print("i: ", i)
